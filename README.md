@@ -245,9 +245,9 @@ If you find this project helpful, consider buying me a coffee!
 
 ## 🔗 **Related Projects**
 
-- [Claude Code CLI](https://docs.anthropic.com/en/docs/claude-code) - Official Claude Code documentation
+- [Rovodev Universal Statusline](https://github.com/hehljo/rovodev-universal-statusline) - Universal statusline for Rovodev CLI
 - [MCP Servers](https://github.com/modelcontextprotocol/servers) - Model Context Protocol servers
 
 ---
 
-**Made with ❤️ for the Claude Code community**
+**Made with ❤️ for the developer community**

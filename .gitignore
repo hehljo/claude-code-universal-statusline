@@ -1,0 +1,22 @@
+# Development files
+.claude/
+*.local.*
+
+# Session tracking and usage data
+usage-tracking.json
+usage-tracking.json.lock
+
+# Temporary files
+*.tmp
+*.log
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# IDE files
+.vscode/
+.idea/
+
+# Node modules (if any)
+node_modules/

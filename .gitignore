@@ -1,5 +1,8 @@
 # Development files
-.claude/
+.claude/settings.local.json
+.claude/*.log
+.claude/usage-tracking.json
+.claude/usage-tracking.json.lock
 *.local.*
 
 # Session tracking and usage data

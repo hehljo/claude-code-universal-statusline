@@ -63,6 +63,31 @@ install_scripts() {
     cp scripts/roadmap-detector.sh /root/.claude/
     chmod +x /root/.claude/roadmap-detector.sh
     
+    # Copy token tracking system (if available)
+    if [ -f ".claude/sync-usage-tracker-v2.sh" ]; then
+        cp .claude/sync-usage-tracker-v2.sh /root/.claude/
+        chmod +x /root/.claude/sync-usage-tracker-v2.sh
+        log_info "✅ Token Tracking v2.0 installiert"
+    fi
+    
+    if [ -f ".claude/token-tracking-hook.sh" ]; then
+        cp .claude/token-tracking-hook.sh /root/.claude/
+        chmod +x /root/.claude/token-tracking-hook.sh
+        log_info "✅ Token Tracking Hook installiert"
+    fi
+    
+    if [ -f ".claude/advanced-token-tracker.sh" ]; then
+        cp .claude/advanced-token-tracker.sh /root/.claude/
+        chmod +x /root/.claude/advanced-token-tracker.sh
+        log_info "✅ Advanced Token Tracker installiert"
+    fi
+    
+    if [ -f ".claude/upgrade-usage-structure.sh" ]; then
+        cp .claude/upgrade-usage-structure.sh /root/.claude/
+        chmod +x /root/.claude/upgrade-usage-structure.sh
+        log_info "✅ Usage Structure Upgrade Tool installiert"
+    fi
+    
     log_info "✅ Skripte installiert"
 }
 

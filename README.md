@@ -15,6 +15,8 @@
 ### 📊 **Progress Tracking**
 - **Auto-Roadmap Management**: Creates and tracks project roadmaps automatically
 - **Task Progress Display**: Shows completed/total tasks in statusline
+- **Real Token Tracking**: Shows actual Claude API token consumption across servers
+- **Multi-Server Sync**: Synchronizes token usage between multiple Claude Code instances
 - **Intelligent Caching**: <200ms execution time with smart caching
 
 ### 🎯 **Claude Code Optimized**
@@ -25,17 +27,16 @@
 ## 🖥️ **Statusline Preview**
 
 ```bash
-🌐 UNIVERSAL | MCP:6/8 | 12/24 | git:main✓ | Next.js | 🧠S | 📖
+🌐 UNIVERSAL | MCP:6/8 | ✅ 12/24 | git:main✓ | Next.js | 🟢 87k (3h45m)
 ```
 
 **Legend:**
-- `🌐 UNIVERSAL` - System fully active
+- `🌐 UNIVERSAL` - System fully active with aquatic icons (🐠🐟🦈🐙🦑🐡🦞🐢)
 - `MCP:6/8` - 6 of 8 MCP servers available
-- `12/24` - 12 of 24 roadmap tasks completed
+- `✅ 12/24` - 12 of 24 roadmap tasks completed
 - `git:main✓` - Git branch + status (✓=clean, ○=modified, ●=staged)
 - `Next.js` - Detected project type
-- `🧠S` - Claude Sonnet active
-- `📖` - Explanatory output style
+- `🟢 87k (3h45m)` - **Real token usage**: 87k remaining, 3h45m until reset
 
 ## 🧠 **Model Icons**
 
@@ -47,6 +48,36 @@ The brain emoji with letter shows your current Claude model:
 | **🧠H** | **Claude Haiku** | Fast, lightweight model |
 | **🧠O** | **Claude Opus** | Most powerful model (if available) |
 | **🧠4** | **Claude Sonnet 4** | Latest version with enhanced capabilities |
+
+## 🔋 **Real Token Tracking**
+
+**NEW**: Live token consumption tracking across multiple servers!
+
+### Token Status Indicators
+
+| Icon | Status | Description |
+|------|--------|-------------|
+| **🟢 87k** | **Healthy** | Plenty of tokens remaining (0-60% used) |
+| **🟡 42k** | **Warning** | Moderate usage (60-80% used) |
+| **🔴 8k** | **Critical** | High usage (80-100% used) |
+
+### Multi-Server Synchronization
+- **Shared Usage Tracking**: All servers share the same token pool via NAS
+- **Real-Time Updates**: Token consumption synchronized across instances
+- **5-Hour Windows**: Automatic reset following Claude's rate limits
+- **Input/Output Breakdown**: Separate tracking of input and output tokens
+
+### Token Tracking Features
+```bash
+# Add tokens manually
+./scripts/sync-usage-tracker-v2.sh add 850 1200  # 850 input + 1200 output
+
+# Check current status
+./scripts/sync-usage-tracker-v2.sh status
+
+# View detailed statistics
+./scripts/sync-usage-tracker-v2.sh detailed
+```
 
 ## 🚀 **Quick Installation**
 

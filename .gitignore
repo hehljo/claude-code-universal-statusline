@@ -23,3 +23,6 @@ Thumbs.db
 
 # Node modules (if any)
 node_modules/
+# Claude Code
+.claude-mcp-recommendations.json
+.claude-session-*

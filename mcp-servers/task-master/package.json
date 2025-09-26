@@ -1,0 +1,19 @@
+{
+  "name": "task-master-mcp-server",
+  "version": "1.0.0",
+  "description": "Task Master AI integration for Claude Code via MCP",
+  "main": "server.js",
+  "bin": {
+    "task-master-mcp": "./server.js"
+  },
+  "scripts": {
+    "start": "node server.js"
+  },
+  "keywords": ["task-master", "mcp", "claude-code", "ai", "project-management"],
+  "author": "Universal Mode Integration",
+  "license": "MIT",
+  "dependencies": {},
+  "engines": {
+    "node": ">=16.0.0"
+  }
+}

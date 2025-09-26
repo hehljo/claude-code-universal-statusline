@@ -1,0 +1,262 @@
+#!/bin/bash
+
+# Rovo Universal Mode - Enhanced Session Support
+# Erweiterte Version mit Session-Wiederherstellung
+
+ROVODEV_DIR="/root/.rovodev"
+SESSIONS_DIR="$ROVODEV_DIR/sessions"
+CONFIG_FILE="$ROVODEV_DIR/config.yml"
+
+# Farben für Output
+RED='\033[0;31m'
+GREEN='\033[0;32m'
+YELLOW='\033[1;33m'
+BLUE='\033[0;34m'
+NC='\033[0m' # No Color
+
+# Logging
+log() {
+    echo -e "${BLUE}[ROVO-UNIVERSAL]${NC} $1"
+}
+
+error() {
+    echo -e "${RED}[ERROR]${NC} $1" >&2
+}
+
+success() {
+    echo -e "${GREEN}[SUCCESS]${NC} $1"
+}
+
+warning() {
+    echo -e "${YELLOW}[WARNING]${NC} $1"
+}
+
+# Session Management Functions
+list_sessions() {
+    log "📂 Verfügbare Sessions:"
+    echo
+    
+    if [ ! -d "$SESSIONS_DIR" ]; then
+        error "Sessions-Verzeichnis nicht gefunden: $SESSIONS_DIR"
+        return 1
+    fi
+    
+    local count=0
+    for session_dir in "$SESSIONS_DIR"/*; do
+        if [ -d "$session_dir" ]; then
+            local session_id=$(basename "$session_dir")
+            local metadata_file="$session_dir/metadata.json"
+            
+            if [ -f "$metadata_file" ]; then
+                local title=$(jq -r '.title // "Untitled"' "$metadata_file" 2>/dev/null || echo "Untitled")
+                local workspace=$(jq -r '.workspace_path // "Unknown"' "$metadata_file" 2>/dev/null || echo "Unknown")
+                local date=$(stat -c %y "$session_dir" | cut -d' ' -f1)
+                
+                printf "%-8s %-30s %-20s %s\n" "$((++count))" "$title" "$(basename "$workspace")" "$date"
+                echo "         ID: $session_id"
+                echo
+            fi
+        fi
+    done
+    
+    if [ $count -eq 0 ]; then
+        warning "Keine Sessions gefunden"
+    else
+        success "Insgesamt $count Sessions gefunden"
+    fi
+}
+
+restore_session() {
+    local session_id="$1"
+    
+    if [ -z "$session_id" ]; then
+        error "Session-ID erforderlich"
+        echo "Usage: rovo restore <session-id>"
+        return 1
+    fi
+    
+    local session_dir="$SESSIONS_DIR/$session_id"
+    
+    if [ ! -d "$session_dir" ]; then
+        error "Session nicht gefunden: $session_id"
+        return 1
+    fi
+    
+    local metadata_file="$session_dir/metadata.json"
+    local context_file="$session_dir/session_context.json"
+    
+    if [ -f "$metadata_file" ]; then
+        local title=$(jq -r '.title // "Untitled"' "$metadata_file" 2>/dev/null)
+        local workspace=$(jq -r '.workspace_path // "."' "$metadata_file" 2>/dev/null)
+        
+        log "🔄 Session wiederherstellen: $title"
+        log "📁 Workspace: $workspace"
+        
+        # Wechsel zum Workspace
+        if [ -d "$workspace" ]; then
+            cd "$workspace"
+            success "Workspace gewechselt: $workspace"
+        else
+            warning "Workspace nicht gefunden: $workspace"
+        fi
+        
+        # Session-Kontext anzeigen
+        if [ -f "$context_file" ]; then
+            log "📋 Session-Kontext verfügbar ($(du -h "$context_file" | cut -f1))"
+            echo
+            echo "Möchten Sie den Session-Kontext anzeigen? (y/n)"
+            read -r response
+            if [[ "$response" =~ ^[Yy]$ ]]; then
+                show_session_context "$session_id"
+            fi
+        fi
+        
+        success "Session wiederhergestellt: $session_id"
+    else
+        error "Session-Metadaten nicht gefunden"
+        return 1
+    fi
+}
+
+show_session_context() {
+    local session_id="$1"
+    local context_file="$SESSIONS_DIR/$session_id/session_context.json"
+    
+    if [ ! -f "$context_file" ]; then
+        error "Session-Kontext nicht gefunden"
+        return 1
+    fi
+    
+    log "📋 Session-Kontext für: $session_id"
+    echo
+    
+    # Zeige die letzten Nachrichten
+    jq -r '.messages[-5:][] | "[\(.timestamp // "unknown")] \(.role): \(.content[0].text // .content)"' "$context_file" 2>/dev/null | head -20
+    
+    echo
+    log "Vollständigen Kontext anzeigen mit: cat $context_file | jq ."
+}
+
+search_sessions() {
+    local query="$1"
+    
+    if [ -z "$query" ]; then
+        error "Suchbegriff erforderlich"
+        echo "Usage: rovo search <query>"
+        return 1
+    fi
+    
+    log "🔍 Suche nach: '$query'"
+    echo
+    
+    local found=0
+    for session_dir in "$SESSIONS_DIR"/*; do
+        if [ -d "$session_dir" ]; then
+            local session_id=$(basename "$session_dir")
+            local metadata_file="$session_dir/metadata.json"
+            local context_file="$session_dir/session_context.json"
+            
+            # Suche in Metadaten
+            if [ -f "$metadata_file" ] && grep -qi "$query" "$metadata_file"; then
+                local title=$(jq -r '.title // "Untitled"' "$metadata_file" 2>/dev/null)
+                echo "📄 $title (ID: $session_id)"
+                found=$((found + 1))
+            fi
+            
+            # Suche in Kontext
+            if [ -f "$context_file" ] && grep -qi "$query" "$context_file"; then
+                local title=$(jq -r '.title // "Untitled"' "$metadata_file" 2>/dev/null)
+                echo "💬 $title (ID: $session_id) - Inhalt gefunden"
+                found=$((found + 1))
+            fi
+        fi
+    done
+    
+    if [ $found -eq 0 ]; then
+        warning "Keine Sessions mit '$query' gefunden"
+    else
+        success "$found Treffer gefunden"
+    fi
+}
+
+# Universal Mode Status
+show_status() {
+    log "🔧 Rovo Universal Mode Status"
+    echo
+    
+    # Session-Statistiken
+    local session_count=$(find "$SESSIONS_DIR" -maxdepth 1 -type d | wc -l)
+    session_count=$((session_count - 1)) # Exclude parent directory
+    
+    local total_size=$(du -sh "$SESSIONS_DIR" 2>/dev/null | cut -f1)
+    
+    echo "📂 Sessions: $session_count ($total_size)"
+    
+    # Neueste Sessions
+    echo "🕒 Neueste Sessions:"
+    find "$SESSIONS_DIR" -name "metadata.json" -exec stat -c "%Y %n" {} \; | sort -nr | head -3 | while read timestamp file; do
+        local session_id=$(basename "$(dirname "$file")")
+        local title=$(jq -r '.title // "Untitled"' "$file" 2>/dev/null)
+        local date=$(date -d "@$timestamp" "+%Y-%m-%d %H:%M")
+        echo "  • $title ($date)"
+    done
+    
+    echo
+    
+    # Konfiguration
+    if [ -f "$CONFIG_FILE" ]; then
+        local auto_restore=$(grep -A1 "autoRestore:" "$CONFIG_FILE" | tail -1 | grep -o "true\|false")
+        echo "⚙️  Auto-Restore: ${auto_restore:-"unknown"}"
+    fi
+    
+    # Universal Mode Features
+    echo "🌟 Universal Mode Features:"
+    echo "  • Session-Wiederherstellung ✅"
+    echo "  • Session-Suche ✅"
+    echo "  • Kontext-Anzeige ✅"
+    echo "  • MCP Integration ✅"
+}
+
+# Main Command Handler
+case "$1" in
+    "sessions"|"list")
+        list_sessions
+        ;;
+    "restore")
+        restore_session "$2"
+        ;;
+    "search")
+        search_sessions "$2"
+        ;;
+    "context")
+        show_session_context "$2"
+        ;;
+    "status")
+        show_status
+        ;;
+    "help"|"--help"|"-h")
+        echo "Rovo Universal Mode - Enhanced Session Support"
+        echo
+        echo "Commands:"
+        echo "  sessions, list     - Liste aller Sessions"
+        echo "  restore <id>       - Session wiederherstellen"
+        echo "  search <query>     - Sessions durchsuchen"
+        echo "  context <id>       - Session-Kontext anzeigen"
+        echo "  status             - Universal Mode Status"
+        echo "  help               - Diese Hilfe anzeigen"
+        echo
+        echo "Examples:"
+        echo "  rovo sessions"
+        echo "  rovo restore 703ea3ab-1bdd-4435-83c9-f1e4dfd59759"
+        echo "  rovo search 'BikeGenie'"
+        ;;
+    *)
+        if [ -z "$1" ]; then
+            show_status
+        else
+            error "Unbekannter Befehl: $1"
+            echo "Verwende 'rovo help' für verfügbare Befehle"
+            exit 1
+        fi
+        ;;
+esac

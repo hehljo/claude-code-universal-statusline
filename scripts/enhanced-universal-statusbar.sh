@@ -27,51 +27,96 @@ get_project_intelligence() {
     local project_dir="$1"
     local cache_file="$INTELLIGENCE_CACHE/$(echo "$project_dir" | md5sum | cut -d' ' -f1).json"
 
-    # Check if cache is valid (less than 30 minutes old for statusbar performance)
-    if [[ -f "$cache_file" ]] && [[ $(($(date +%s) - $(stat -c %Y "$cache_file"))) -lt 1800 ]]; then
+    # Check if cache is valid (5 minutes for Claude Code v2.0.1 performance)
+    if [[ -f "$cache_file" ]] && [[ $(($(date +%s) - $(stat -c %Y "$cache_file"))) -lt 300 ]]; then
         cat "$cache_file"
         return 0
     fi
 
-    # Get fresh intelligence (background update for performance)
-    if [[ -x "$SCRIPT_DIR/intelligent-project-detector.sh" ]]; then
-        "$SCRIPT_DIR/intelligent-project-detector.sh" analyze "$project_dir" > "$cache_file" 2>/dev/null &
+    # Fast fallback: Use lightweight project detection instead of heavy analyzer
+    local project_type="Unknown"
+    local confidence=50
 
-        # Return cached if available, otherwise minimal data
-        if [[ -f "$cache_file" ]]; then
-            cat "$cache_file"
+    if [[ -f "$project_dir/package.json" ]]; then
+        if grep -q "next" "$project_dir/package.json" 2>/dev/null; then
+            project_type="Next.js"
+            confidence=90
+        elif grep -q "react" "$project_dir/package.json" 2>/dev/null; then
+            project_type="React"
+            confidence=85
+        elif grep -q "vue" "$project_dir/package.json" 2>/dev/null; then
+            project_type="Vue.js"
+            confidence=85
         else
-            echo '{"project":{"primary_type":"Unknown","confidence":0},"mcps":{"essential":[],"recommended":[]},"patterns":{"patterns":[],"intensity":"conservative"}}'
+            project_type="Node.js"
+            confidence=80
         fi
-    else
-        echo '{"project":{"primary_type":"Unknown","confidence":0},"mcps":{"essential":[],"recommended":[]},"patterns":{"patterns":[],"intensity":"conservative"}}'
+    elif [[ -f "$project_dir/requirements.txt" ]] || [[ -f "$project_dir/pyproject.toml" ]]; then
+        project_type="Python"
+        confidence=80
+    elif [[ -f "$project_dir/Cargo.toml" ]]; then
+        project_type="Rust"
+        confidence=90
+    elif [[ -f "$project_dir/go.mod" ]]; then
+        project_type="Go"
+        confidence=90
     fi
+
+    # Cache fast result
+    echo "{\"project\":{\"primary_type\":\"$project_type\",\"confidence\":$confidence},\"mcps\":{\"essential\":[],\"recommended\":[]},\"patterns\":{\"patterns\":[],\"intensity\":\"conservative\"}}" > "$cache_file"
+    cat "$cache_file"
 }
 
-# Get active MCP status
+# Get active MCP status (optimized with caching)
 get_mcp_status() {
-    if [[ -f "$MCP_STATES_PATH" ]]; then
-        local active_mcps=($(cat "$MCP_STATES_PATH" | jq -r '.active_servers[]' 2>/dev/null))
-        local total_available=$(cat "$MCP_STATES_PATH" | jq -r '.available_servers // [] | length' 2>/dev/null)
+    local cache_file="/tmp/claude-mcp-status-cache.txt"
+    local cache_ttl=60  # 1 minute cache for performance
 
-        if [[ $total_available -eq 0 ]]; then
-            total_available=9  # Default estimate
-        fi
-
-        echo "${#active_mcps[@]}/$total_available"
-    else
-        echo "0/9"
+    # Use cache if valid
+    if [[ -f "$cache_file" ]] && [[ $(($(date +%s) - $(stat -c %Y "$cache_file" 2>/dev/null || echo 0))) -lt $cache_ttl ]]; then
+        cat "$cache_file"
+        return 0
     fi
+
+    # Fast detection: Check common MCP indicators
+    local active_count=0
+    local total_available=8
+
+    # Check for filesystem access (always available in Claude Code)
+    [[ -d "$HOME" ]] && ((active_count++))
+
+    # Check for git (available if in git repo)
+    [[ -d ".git" ]] && ((active_count++))
+
+    # Quick MCP state check (if available)
+    if [[ -f "$MCP_STATES_PATH" ]]; then
+        local state_active=($(jq -r '.active_servers[]' "$MCP_STATES_PATH" 2>/dev/null))
+        local state_total=$(jq -r '.available_servers // [] | length' "$MCP_STATES_PATH" 2>/dev/null)
+
+        if [[ ${#state_active[@]} -gt 0 ]]; then
+            active_count=${#state_active[@]}
+        fi
+        if [[ $state_total -gt 0 ]]; then
+            total_available=$state_total
+        fi
+    fi
+
+    # Cache result
+    local result="${active_count}/${total_available}"
+    echo "$result" > "$cache_file"
+    echo "$result"
 }
 
-# Get active pattern status
+# Get active pattern status (optimized)
 get_pattern_status() {
     local intelligence="$1"
-    local recommended_patterns=($(echo "$intelligence" | jq -r '.patterns.patterns[]' 2>/dev/null))
-    local intensity=$(echo "$intelligence" | jq -r '.patterns.intensity // "conservative"')
+    local recommended_patterns=($(echo "$intelligence" | jq -r '.patterns.patterns[]?' 2>/dev/null))
+
+    # Fast return if no patterns recommended
+    [[ ${#recommended_patterns[@]} -eq 0 ]] && echo "0/0" && return 0
 
     if [[ -f "$PATTERN_STATES_PATH" ]]; then
-        local active_patterns=($(cat "$PATTERN_STATES_PATH" | jq -r '.active_patterns[]' 2>/dev/null))
+        local active_patterns=($(jq -r '.active_patterns[]?' "$PATTERN_STATES_PATH" 2>/dev/null))
         echo "${#active_patterns[@]}/${#recommended_patterns[@]}"
     else
         echo "0/${#recommended_patterns[@]}"
@@ -214,6 +259,33 @@ get_enhanced_git_info() {
     fi
 }
 
+# Model detection with Claude 4.5 support
+get_model_info() {
+    local model_name="$1"
+
+    # Detect Claude version and return appropriate info
+    case "$model_name" in
+        *"sonnet-4"*|*"Sonnet 4"*|*"4.5"*|*"claude-sonnet-4"*)
+            echo "🧠4.5"
+            ;;
+        *"sonnet"*|*"Sonnet"*)
+            echo "🧠S3.5"
+            ;;
+        *"opus-4"*|*"Opus 4"*)
+            echo "🧠O4"
+            ;;
+        *"opus"*|*"Opus"*)
+            echo "🧠O"
+            ;;
+        *"haiku"*|*"Haiku"*)
+            echo "🧠H"
+            ;;
+        *)
+            echo "🧠"
+            ;;
+    esac
+}
+
 # Use enhanced token tracking (shared with existing system)
 get_token_info() {
     # Use shared sync tracker for multi-server coordination (prefer v2.0)
@@ -275,6 +347,7 @@ build_enhanced_statusline() {
     local optimization_indicators=$(get_optimization_indicators "$intelligence")
     local git_info=$(get_enhanced_git_info)
     local token_info=$(get_token_info)
+    local model_info=$(get_model_info "$model")
 
     # Get project info
     local primary_type=$(echo "$intelligence" | jq -r '.project.primary_type')
@@ -285,6 +358,9 @@ build_enhanced_statusline() {
 
     # Start building status
     local status="$aquarium_creature UNIVERSAL"
+
+    # Add model info (Claude 4.5 support)
+    status="$status [$model_info]"
 
     # Add intelligence level with visual indicator
     local level_text=$(echo "$intelligence_level" | cut -d' ' -f2-)

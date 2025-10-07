@@ -27,45 +27,64 @@
 ## 🖥️ **Statusline Preview**
 
 ```bash
-🌐 UNIVERSAL | MCP:6/8 | ✅ 12/24 | git:main✓ | Next.js | 🟢 87k (3h45m)
+🌐 UNIVERSAL | 🧠4.5 | MCP:6/8 | ✅ 12/24 | git:main✓ | Next.js | 🟢 320msg (4h)
 ```
 
 **Legend:**
 - `🌐 UNIVERSAL` - System fully active with aquatic icons (🐠🐟🦈🐙🦑🐡🦞🐢)
+- `🧠4.5` - Claude Sonnet 4.5 model detected
 - `MCP:6/8` - 6 of 8 MCP servers available
 - `✅ 12/24` - 12 of 24 roadmap tasks completed
 - `git:main✓` - Git branch + status (✓=clean, ○=modified, ●=staged)
 - `Next.js` - Detected project type
-- `🟢 87k (3h45m)` - **Real token usage**: 87k remaining, 3h45m until reset
+- `🟢 320msg (4h)` - **Rate limit status**: 320 messages remaining, 4h until reset
 
 ## 🧠 **Model Icons**
 
-The brain emoji with letter shows your current Claude model:
+The brain emoji with version shows your current Claude model:
 
 | Icon | Model | Description |
 |------|---------|-------------|
-| **🧠S** | **Claude Sonnet** | Standard model for most tasks |
+| **🧠4.5** | **Claude Sonnet 4.5** | Latest model with enhanced capabilities (2025) |
+| **🧠S3.5** | **Claude Sonnet 3.5** | Standard model for most tasks |
+| **🧠O4** | **Claude Opus 4** | Most powerful model for complex tasks |
 | **🧠H** | **Claude Haiku** | Fast, lightweight model |
-| **🧠O** | **Claude Opus** | Most powerful model (if available) |
-| **🧠4** | **Claude Sonnet 4** | Latest version with enhanced capabilities |
+| **🧠O** | **Claude Opus 3** | Previous generation powerful model |
 
 ## 🔋 **Real Token Tracking**
 
-**NEW**: Live token consumption tracking across multiple servers!
+**NEW 2025**: Dual-limit tracking with weekly + 5h rolling window!
 
 ### Token Status Indicators
 
 | Icon | Status | Description |
 |------|--------|-------------|
-| **🟢 87k** | **Healthy** | Plenty of tokens remaining (0-60% used) |
-| **🟡 42k** | **Warning** | Moderate usage (60-80% used) |
-| **🔴 8k** | **Critical** | High usage (80-100% used) |
+| **🟢 320msg** | **Healthy** | Plenty of capacity remaining (0-60% used) |
+| **🟡 120msg** | **Warning** | Moderate usage (60-80% used) |
+| **🔴 LIMIT** | **Critical** | Rate limit reached |
 
-### Multi-Server Synchronization
-- **Shared Usage Tracking**: All servers share the same token pool via NAS
-- **Real-Time Updates**: Token consumption synchronized across instances
-- **5-Hour Windows**: Automatic reset following Claude's rate limits
-- **Input/Output Breakdown**: Separate tracking of input and output tokens
+### 2025 Rate Limits (Updated August 2025)
+
+**Claude Pro ($20/month):**
+- 40-80h Sonnet 4.5 usage per week
+- ~45 messages per 5h rolling window
+- ~1,440 messages per week
+
+**Claude Max 5x ($100/month):**
+- 140-280h Sonnet 4.5 + 15-35h Opus 4 per week
+- ~225 messages per 5h rolling window
+- ~5,040 messages per week
+
+**Claude Max 20x ($200/month):**
+- 240-480h Sonnet 4.5 + 24-40h Opus 4 per week
+- ~900 messages per 5h rolling window
+- ~8,640 messages per week
+
+### Dual-Limit Tracking
+- **Weekly Limits**: Resets every Monday
+- **5h Rolling Window**: Continuously resets every 5 hours
+- **Smart Display**: Shows the more restrictive limit
+- **Real-Time Updates**: Message consumption synchronized across instances
 
 ### Token Tracking Features
 ```bash

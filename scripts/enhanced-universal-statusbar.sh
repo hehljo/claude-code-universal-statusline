@@ -67,44 +67,11 @@ get_project_intelligence() {
     cat "$cache_file"
 }
 
-# Get active MCP status (optimized with caching)
+# Get active MCP/Tools status - DISABLED (no real data available)
 get_mcp_status() {
-    local cache_file="/tmp/claude-mcp-status-cache.txt"
-    local cache_ttl=60  # 1 minute cache for performance
-
-    # Use cache if valid
-    if [[ -f "$cache_file" ]] && [[ $(($(date +%s) - $(stat -c %Y "$cache_file" 2>/dev/null || echo 0))) -lt $cache_ttl ]]; then
-        cat "$cache_file"
-        return 0
-    fi
-
-    # Fast detection: Check common MCP indicators
-    local active_count=0
-    local total_available=8
-
-    # Check for filesystem access (always available in Claude Code)
-    [[ -d "$HOME" ]] && ((active_count++))
-
-    # Check for git (available if in git repo)
-    [[ -d ".git" ]] && ((active_count++))
-
-    # Quick MCP state check (if available)
-    if [[ -f "$MCP_STATES_PATH" ]]; then
-        local state_active=($(jq -r '.active_servers[]' "$MCP_STATES_PATH" 2>/dev/null))
-        local state_total=$(jq -r '.available_servers // [] | length' "$MCP_STATES_PATH" 2>/dev/null)
-
-        if [[ ${#state_active[@]} -gt 0 ]]; then
-            active_count=${#state_active[@]}
-        fi
-        if [[ $state_total -gt 0 ]]; then
-            total_available=$state_total
-        fi
-    fi
-
-    # Cache result
-    local result="${active_count}/${total_available}"
-    echo "$result" > "$cache_file"
-    echo "$result"
+    # Claude Code v2+ doesn't expose MCP server count
+    # Returning empty to not show in statusbar
+    echo ""
 }
 
 # Get active pattern status (optimized)
@@ -286,19 +253,23 @@ get_model_info() {
     esac
 }
 
-# Use enhanced token tracking (shared with existing system)
+# Use Claude Code usage tracking from ClaudeOrchester
 get_token_info() {
-    # Use shared sync tracker for multi-server coordination (prefer v2.0)
-    if [[ -x "$SCRIPT_DIR/../.claude/sync-usage-tracker-v2.sh" ]]; then
-        "$SCRIPT_DIR/../.claude/sync-usage-tracker-v2.sh" status
-    elif [[ -x "/root/.claude/sync-usage-tracker-v2.sh" ]]; then
-        "/root/.claude/sync-usage-tracker-v2.sh" status
-    elif [[ -x "/root/.claude/sync-usage-tracker.sh" ]]; then
-        "/root/.claude/sync-usage-tracker.sh" status
-    else
-        # Fallback to basic token tracking
-        echo "🔋 Unknown"
+    # NEW: Use ClaudeOrchester usage tracker for 5h and weekly limits
+    local usage_tracker="/root/ClaudeOrchester/src/automation/claude_usage_tracker.py"
+
+    # UltraThink: Direct usage from cache (updated by PostToolUse hook)
+    if [[ -f "$usage_tracker" ]]; then
+        local usage_output=$(cd /root/ClaudeOrchester && python3 -m src.automation.claude_usage_tracker statusbar 2>/dev/null)
+
+        if [[ $? -eq 0 && -n "$usage_output" ]]; then
+            echo "$usage_output"
+            return 0
+        fi
     fi
+
+    # Fallback: Show time-based info if no cache
+    echo "🕐5h:?h 📅W:?d"
 }
 
 # Format aquarium animation for UNIVERSAL mode
@@ -366,14 +337,7 @@ build_enhanced_statusline() {
     local level_text=$(echo "$intelligence_level" | cut -d' ' -f2-)
     status="$status [$level_text]"
 
-    # Add MCP status
-    status="$status [MCP:$mcp_status]"
-
-    # Add pattern status if patterns are recommended
-    local pattern_total=$(echo "$pattern_status" | cut -d'/' -f2)
-    if [[ $pattern_total -gt 0 ]]; then
-        status="$status [Patterns:$pattern_status]"
-    fi
+    # MCP status removed - no real data available in Claude Code v2+
 
     # Add special modes if any
     if [[ -n "$special_modes" ]]; then
